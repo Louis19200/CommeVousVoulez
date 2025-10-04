@@ -1,0 +1,412 @@
+openapi: 3.1.0
+info:
+  title: API Car in stock
+  version: "1.0.1"
+  description: >
+    RESTful API to list, add, modify, delete, and retrieve a child collection of cars in stock.
+tags:
+  - name: Cars
+    description: Car inventory management
+  - name: Maintenances
+    description: Maintenance records attached to a car
+
+servers:
+  - url: https://myapi.com/
+
+paths:
+  /cars:
+    get:
+      tags: [Cars]
+      summary: List the cars
+      description: >
+        Returns a paginated list of cars. Supports an additional filter: `created_by`.
+      parameters:
+        - $ref: "#/components/parameters/PageParam"
+        - $ref: "#/components/parameters/PerPageParam"
+        - $ref: "#/components/parameters/CreatedByParam"
+      responses:
+        "200":
+          description: Paginated list of cars.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PaginatedCars"
+              examples:
+                example:
+                  value:
+                    data:
+                      - id: "1"
+                        name: "Mercedes"
+                        color: "black"
+                        price: 10000
+                        stock: 35
+                        created_by: "user_42"
+                      - id: "2"
+                        name: "Renault"
+                        color: "red"
+                        price: 15000
+                        stock: 12
+                        created_by: "user_17"
+                    meta:
+                      page: 1
+                      per_page: 20
+                      total_items: 237
+                      total_pages: 12
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "406": { $ref: "#/components/responses/NotAcceptable" }
+        "500": { $ref: "#/components/responses/ServerError" }
+      # lecture publique ; pas de JWT requis
+
+    post:
+      tags: [Cars]
+      summary: Add a car
+      description: >
+        Creates a new car in stock. Endpoint protected by a **JWT** Bearer token.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/CarCreate" }
+            examples:
+              creation:
+                value:
+                  name: "Porsche 911"
+                  color: "green"
+                  price: 49900
+                  stock: 20
+                  created_by: "user_42"
+      responses:
+        "201":
+          description: Car successfully created.
+          headers:
+            Location:
+              description: URL of the created resource.
+              schema: { type: string, format: uri }
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Car" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "406": { $ref: "#/components/responses/NotAcceptable" }
+        "409": { $ref: "#/components/responses/Conflict" }
+        "415": { $ref: "#/components/responses/UnsupportedMediaType" }
+        "422": { $ref: "#/components/responses/UnprocessableEntity" }
+        "500": { $ref: "#/components/responses/ServerError" }
+      security:
+        - bearerAuth: []
+
+  /cars/{id}:
+    patch:
+      tags: [Cars]
+      summary: Modify a car
+      description: >
+        Updates certain fields of the car identified by `id` (internal ID). Protected by **JWT** Bearer.
+      parameters:
+        - $ref: "#/components/parameters/CarIdPath"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/CarUpdate" }
+            examples:
+              update_stock_price:
+                value:
+                  stock: 28
+                  price: 46900
+      responses:
+        "200":
+          description: Car modified successfully
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Car" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "406": { $ref: "#/components/responses/NotAcceptable" }
+        "409": { $ref: "#/components/responses/Conflict" }
+        "415": { $ref: "#/components/responses/UnsupportedMediaType" }
+        "422": { $ref: "#/components/responses/UnprocessableEntity" }
+        "500": { $ref: "#/components/responses/ServerError" }
+      security:
+        - bearerAuth: []
+
+    delete:
+      tags: [Cars]
+      summary: Delete a car
+      description: >
+        Deletes the car identified by `id`. Protected by **JWT** Bearer.
+      parameters:
+        - $ref: "#/components/parameters/CarIdPath"
+      responses:
+        "204":
+          description: Car successfully deleted. No content returned.
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "500": { $ref: "#/components/responses/ServerError" }
+      security:
+        - bearerAuth: []
+
+  /cars/{id}/maintenances:
+    get:
+      tags: [Maintenances]
+      summary: List maintenance records for a car (child collection)
+      description: >
+        Returns a paginated list of maintenance records attached to the car identified by `id`.
+      parameters:
+        - $ref: "#/components/parameters/CarIdPath"
+        - $ref: "#/components/parameters/PageParam"
+        - $ref: "#/components/parameters/PerPageParam"
+      responses:
+        "200":
+          description: Paginated maintenance records for the car.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PaginatedMaintenances"
+              examples:
+                example:
+                  value:
+                    data:
+                      - id: "m_101"
+                        date: "2025-06-15"
+                        description: "Oil change + filter"
+                        cost: 180.5
+                      - id: "m_102"
+                        date: "2025-08-01"
+                        description: "Brake pads front"
+                        cost: 240
+                    meta:
+                      page: 1
+                      per_page: 20
+                      total_items: 2
+                      total_pages: 1
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "406": { $ref: "#/components/responses/NotAcceptable" }
+        "500": { $ref: "#/components/responses/ServerError" }
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: >
+        Provide a valid JWT token via `Authorization: Bearer <token>`.
+
+  parameters:
+    PageParam:
+      name: page
+      in: query
+      description: Page number (≥ 1). Default 1.
+      required: false
+      schema: { type: integer, minimum: 1, default: 1 }
+    PerPageParam:
+      name: per_page
+      in: query
+      description: Items per page (1–100). Default 20.
+      required: false
+      schema: { type: integer, minimum: 1, maximum: 100, default: 20 }
+    CreatedByParam:
+      name: created_by
+      in: query
+      description: Filter cars created by a specific user id/slug.
+      required: false
+      schema:
+        type: string
+        minLength: 1
+        maxLength: 64
+        example: "user_42"
+    CarIdPath:
+      name: id
+      in: path
+      required: true
+      description: Unique identifier for the car (ex. `7455`).
+      schema: { type: string, minLength: 1, maxLength: 64 }
+
+  schemas:
+    CarBase:
+      type: object
+      properties:
+        name:
+          type: string
+          description: Commercial name of the car.
+          minLength: 1
+          maxLength: 100
+          example: "Renault Clio"
+        color:
+          type: string
+          description: Readable color (ex. "black", "heather grey").
+          minLength: 1
+          maxLength: 40
+          example: "black"
+        price:
+          type: number
+          format: float
+          description: Unit price including tax.
+          minimum: 0
+          maximum: 1000000
+          example: 14990
+        stock:
+          type: integer
+          description: Quantity available in stock (≥ 0).
+          minimum: 0
+          maximum: 10000
+          example: 12
+        created_by:
+          type: string
+          description: Creator user id/slug.
+          minLength: 1
+          maxLength: 64
+          example: "user_17"
+      additionalProperties: false
+
+    Car:
+      allOf:
+        - type: object
+          properties:
+            id:
+              type: string
+              description: Unique internal identifier for the car.
+              example: "1352"
+          required: [id]
+        - $ref: "#/components/schemas/CarBase"
+
+    CarCreate:
+      allOf:
+        - $ref: "#/components/schemas/CarBase"
+      required: [name, color, price, stock, created_by]
+
+    CarUpdate:
+      type: object
+      description: Modifiable fields for a car.
+      properties:
+        name: { type: string, minLength: 1, maxLength: 100 }
+        color: { type: string, minLength: 1, maxLength: 40 }
+        price: { type: number, format: float, minimum: 0, maximum: 1000000 }
+        stock: { type: integer, minimum: 0, maximum: 10000 }
+      additionalProperties: false
+      examples:
+        - { stock: 0, price: 13490 }
+
+    Maintenance:
+      type: object
+      properties:
+        id:
+          type: string
+          description: Unique maintenance record identifier.
+          example: "m_101"
+        date:
+          type: string
+          format: date
+          description: Maintenance date (YYYY-MM-DD).
+          example: "2025-06-15"
+        description:
+          type: string
+          minLength: 1
+          maxLength: 200
+          example: "Oil change + filter"
+        cost:
+          type: number
+          format: float
+          minimum: 0
+          maximum: 100000
+          example: 180.5
+      required: [id, date, description, cost]
+      additionalProperties: false
+
+    PaginationMeta:
+      type: object
+      properties:
+        page: { type: integer, minimum: 1, example: 1 }
+        per_page: { type: integer, minimum: 1, maximum: 100, example: 20 }
+        total_items: { type: integer, minimum: 0, example: 237 }
+        total_pages: { type: integer, minimum: 0, example: 12 }
+      required: [page, per_page, total_items, total_pages]
+      additionalProperties: false
+
+    Error:
+      type: object
+      description: Generic error template.
+      properties:
+        status: { type: integer, example: 400 }
+        code: { type: string, example: "bad_request" }
+        message: { type: string, example: "Invalid `per_page` parameter." }
+        details:
+          type: object
+          additionalProperties: true
+      required: [status, code, message]
+      additionalProperties: false
+
+    PaginatedCars:
+      type: object
+      properties:
+        data:
+          type: array
+          items: { $ref: "#/components/schemas/Car" }
+        meta:
+          $ref: "#/components/schemas/PaginationMeta"
+      required: [data, meta]
+      additionalProperties: false
+
+    PaginatedMaintenances:
+      type: object
+      properties:
+        data:
+          type: array
+          items: { $ref: "#/components/schemas/Maintenance" }
+        meta:
+          $ref: "#/components/schemas/PaginationMeta"
+      required: [data, meta]
+      additionalProperties: false
+
+  responses:
+    BadRequest:
+      description: Invalid request (validation error, incorrect parameters).
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+    Unauthorized:
+      description: Authentication required or token missing/expired.
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+    Forbidden:
+      description: Authenticated but not authorized to perform the action.
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+    NotFound:
+      description: Resource not found.
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+    Conflict:
+      description: State conflict (e.g., duplicate ID).
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+    UnprocessableEntity:
+      description: Data that is well-formed but invalid (business rules).
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+    ServerError:
+      description: Internal server error.
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+    UnsupportedMediaType:
+      description: Only `application/json` is supported for requests with a body.
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+    NotAcceptable:
+      description: Only `application/json` is produced by this API.
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
