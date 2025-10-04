@@ -11,7 +11,7 @@ tags:
     description: Maintenance records attached to a car
 
 servers:
-  - url: https://myapi.com/
+  - url: https://myapi.com
 
 paths:
   /cars:
