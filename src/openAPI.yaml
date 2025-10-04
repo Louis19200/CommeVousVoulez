@@ -55,7 +55,6 @@ paths:
         "400": { $ref: "#/components/responses/BadRequest" }
         "406": { $ref: "#/components/responses/NotAcceptable" }
         "500": { $ref: "#/components/responses/ServerError" }
-      # lecture publique ; pas de JWT requis
 
     post:
       tags: [Cars]
@@ -153,7 +152,7 @@ paths:
   /cars/{id}/maintenances:
     get:
       tags: [Maintenances]
-      summary: List maintenance records for a car (child collection)
+      summary: List maintenance records for a car
       description: >
         Returns a paginated list of maintenance records attached to the car identified by `id`.
       parameters:
