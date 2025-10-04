@@ -1,0 +1,326 @@
+openapi: 3.1.0
+info:
+  title: API Inventaire de Sweats
+  version: "1.0.0"
+  description: >
+    API RESTful pour lister, créer et modifier des sweats (hoodies/sweatshirts) en stock.
+    - Pagination avec `page` (≥1) et `per_page` (1–100).
+    - Écriture protégée par Bearer token **JWT**.
+    - Média **application/json** uniquement.
+tags:
+  - name: Sweats
+    description: Gestion du stock de sweats
+
+servers:
+- url : https://google.fr/
+  description : sah
+
+paths:
+  /sweats:
+    get:
+      tags: [Sweats]
+      summary: Lister les sweats (paginé)
+      description: >
+        Retourne une liste paginée de sweats triés par date de création décroissante.
+      parameters:
+        - name: page
+          in: query
+          description: Numéro de page (≥ 1). Par défaut 1.
+          required: false
+          schema: { type: integer, minimum: 1, default: 1 }
+        - name: per_page
+          in: query
+          description: Nombre d'éléments par page (1–100). Par défaut 20.
+          required: false
+          schema: { type: integer, minimum: 1, maximum: 100, default: 20 }
+      responses:
+        "200":
+          description: Liste paginée de sweats.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PaginatedSweats"
+              examples:
+                exemple:
+                  value:
+                    data:
+                      - id: "sw_01J8Z9K2"
+                        sku: "HD-UNISEX-NAVY-M"
+                        name: "Hoodie Unisexe"
+                        color: "navy"
+                        color_hex: "#0B1F3A"
+                        size: "M"
+                        price: 49.9
+                        currency: "EUR"
+                        stock: 35
+                        created_at: "2025-09-18T10:21:33Z"
+                        updated_at: "2025-10-01T14:02:00Z"
+                      - id: "sw_01J8Z9K3"
+                        sku: "SW-CREW-BLACK-L"
+                        name: "Sweat Col Rond"
+                        color: "black"
+                        color_hex: "#000000"
+                        size: "L"
+                        price: 39.9
+                        currency: "EUR"
+                        stock: 12
+                        created_at: "2025-09-20T08:10:00Z"
+                        updated_at: "2025-10-02T09:45:11Z"
+                    meta:
+                      page: 1
+                      per_page: 20
+                      total_items: 237
+                      total_pages: 12
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "500": { $ref: "#/components/responses/ServerError" }
+      security: []  # public
+
+    post:
+      tags: [Sweats]
+      summary: Ajouter un sweat
+      description: >
+        Crée un nouveau sweat en stock. Endpoint protégé par un Bearer token **JWT**.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/SweatCreate" }
+            examples:
+              creation:
+                value:
+                  sku: "HD-UNISEX-GREY-XL"
+                  name: "Hoodie Unisexe"
+                  color: "heather grey"
+                  color_hex: "#B3B7BD"
+                  size: "XL"
+                  price: 49.9
+                  currency: "EUR"
+                  stock: 20
+      responses:
+        "201":
+          description: Sweat créé avec succès.
+          headers:
+            Location:
+              description: URL de la ressource créée.
+              schema: { type: string, format: uri }
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Sweat" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "409": { $ref: "#/components/responses/Conflict" } # ex: SKU déjà existant
+        "422": { $ref: "#/components/responses/UnprocessableEntity" }
+        "500": { $ref: "#/components/responses/ServerError" }
+      security:
+        - bearerAuth: []
+
+  /sweats/{sweatId}:
+    patch:
+      tags: [Sweats]
+      summary: Modifier partiellement un sweat
+      description: >
+        Met à jour certains champs du sweat identifié par `sweatId` (ID interne).
+        Endpoint protégé par un Bearer token **JWT**.
+      parameters:
+        - name: sweatId
+          in: path
+          required: true
+          description: Identifiant unique du sweat (ex. `sw_01J8Z9K2`).
+          schema: { type: string, minLength: 3 }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/SweatUpdate" }
+            examples:
+              maj_stock_prix:
+                value:
+                  stock: 28
+                  price: 46.9
+      responses:
+        "200":
+          description: Sweat mis à jour.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Sweat" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+        "422": { $ref: "#/components/responses/UnprocessableEntity" }
+        "500": { $ref: "#/components/responses/ServerError" }
+      security:
+        - bearerAuth: []
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: >
+        Fournir un token JWT valide via `Authorization: Bearer <token>`.
+
+  schemas:
+    # Base factorisée pour éviter la duplication
+    SweatBase:
+      type: object
+      properties:
+        sku:
+          type: string
+          description: Référence unique de l'article (ex. "HD-UNISEX-NAVY-M").
+          minLength: 3
+        name:
+          type: string
+          description: Nom commercial du sweat.
+          minLength: 1
+        color:
+          type: string
+          description: Couleur lisible (ex. "black", "heather grey").
+          minLength: 1
+        color_hex:
+          type: string
+          description: Couleur hex optionnelle (ex. "#000000").
+          pattern: "^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$"
+        size:
+          type: string
+          description: Taille.
+          enum: [XS, S, M, L, XL, XXL]
+        price:
+          type: number
+          format: float
+          description: Prix unitaire TTC.
+          minimum: 0
+        currency:
+          type: string
+          description: Devise ISO 4217.
+          pattern: "^[A-Z]{3}$"
+          example: EUR
+        stock:
+          type: integer
+          description: Quantité disponible en stock (≥ 0).
+          minimum: 0
+      additionalProperties: false
+
+    Sweat:
+      allOf:
+        - type: object
+          properties:
+            id:
+              type: string
+              description: Identifiant unique interne du sweat.
+              example: sw_01J8Z9K2
+            created_at:
+              type: string
+              format: date-time
+            updated_at:
+              type: string
+              format: date-time
+          required: [id, created_at, updated_at]
+        - $ref: "#/components/schemas/SweatBase"
+
+    SweatCreate:
+      allOf:
+        - $ref: "#/components/schemas/SweatBase"
+      required:
+        - sku
+        - name
+        - color
+        - size
+        - price
+        - currency
+        - stock
+
+    SweatUpdate:
+      type: object
+      description: Champs modifiables d’un sweat.
+      properties:
+        name: { type: string, minLength: 1 }
+        color: { type: string, minLength: 1 }
+        color_hex:
+          type: string
+          pattern: "^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$"
+        size:
+          type: string
+          enum: [XS, S, M, L, XL, XXL]
+        price: { type: number, format: float, minimum: 0 }
+        currency:
+          type: string
+          pattern: "^[A-Z]{3}$"
+        stock: { type: integer, minimum: 0 }
+      additionalProperties: false
+      examples:
+        - { stock: 0, price: 34.9 }
+
+    PaginationMeta:
+      type: object
+      properties:
+        page: { type: integer, minimum: 1, example: 1 }
+        per_page: { type: integer, minimum: 1, maximum: 100, example: 20 }
+        total_items: { type: integer, minimum: 0, example: 237 }
+        total_pages: { type: integer, minimum: 0, example: 12 }
+      required: [page, per_page, total_items, total_pages]
+      additionalProperties: false
+
+    PaginatedSweats:
+      type: object
+      properties:
+        data:
+          type: array
+          items: { $ref: "#/components/schemas/Sweat" }
+        meta:
+          $ref: "#/components/schemas/PaginationMeta"
+      required: [data, meta]
+      additionalProperties: false
+
+    Error:
+      type: object
+      description: Modèle générique d’erreur.
+      properties:
+        status: { type: integer, example: 400 }
+        code: { type: string, example: "bad_request" }
+        message: { type: string, example: "Paramètre `per_page` invalide." }
+        details:
+          type: object
+          additionalProperties: true
+      required: [status, code, message]
+      additionalProperties: false
+
+  responses:
+    BadRequest:
+      description: Requête invalide (erreur de validation, paramètres incorrects).
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+    Unauthorized:
+      description: Authentification requise ou token manquant/expiré.
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+    Forbidden:
+      description: Authentifié mais non autorisé à effectuer l’action.
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+    NotFound:
+      description: Ressource non trouvée.
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+    Conflict:
+      description: Conflit d’état (ex. doublon de SKU).
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+    UnprocessableEntity:
+      description: Données bien formées mais non valides (règles métier).
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+    ServerError:
+      description: Erreur interne du serveur.
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
